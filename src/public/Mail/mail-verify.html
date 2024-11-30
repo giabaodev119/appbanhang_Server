@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Xác Thực Tài Khoản</title>
+    <style>
+      /* Reset style mặc định cho email */
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-color: #f9f9f9;
+        color: #333333;
+      }
+      table {
+        border-spacing: 0;
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        border: 1px solid #dddddd;
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+      td {
+        padding: 20px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 24px;
+        color: #333333;
+        margin: 0 0 20px;
+      }
+      p {
+        font-size: 16px;
+        margin: 0 0 20px;
+        color: #555555;
+      }
+      a {
+        text-decoration: none;
+        background-color: #ffffff;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-size: 16px;
+        font-weight: bold;
+        display: inline-block;
+        transition: background-color 0.3s ease;
+      }
+      a:hover {
+        background-color: #ffffff;
+      }
+      .footer {
+        font-size: 12px;
+        color: #999999;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <table>
+      <tr>
+        <td>
+          <h1>Xác Thực Tài Khoản</h1>
+          <p>
+            Chào mừng bạn! Vui lòng bấm vào nút bên dưới để xác thực tài khoản
+            của bạn:
+          </p>
+          <a href="{{verify_link}}" target="_blank">Xác Thực Ngay</a>
+          <p class="footer">
+            Nếu bạn không tạo tài khoản, vui lòng bỏ qua email này.
+          </p>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
