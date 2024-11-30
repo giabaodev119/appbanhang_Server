@@ -3,14 +3,12 @@ import ProductModel from "models/product";
 import { isValidObjectId } from "mongoose";
 import UserModel from "src/models/user";
 import { sendErrorRes } from "src/utils/helper";
-import cloudUploader, { cloudApi } from "src/cloud";
+import { cloudApi } from "src/cloud";
 
 export const getListings: RequestHandler = async (req, res) => {
   try {
     if (!req.user?.isAdmin) {
-      res
-        .status(403)
-        .json({ success: false, message: "Bạn không có quyền truy cập" });
+      sendErrorRes(res, "Bạn không có quyền truy cập", 403);
       return; // Thêm `return` để kết thúc hàm nhưng không trả về giá trị.
     }
 
@@ -30,9 +28,7 @@ export const getListings: RequestHandler = async (req, res) => {
 
     res.status(200).json({ data: listings });
   } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại" });
+    sendErrorRes(res, "Đã xảy ra lỗi, vui lòng thử lại", 500);
   }
 };
 export const getUser: RequestHandler = async (req, res) => {
@@ -43,9 +39,7 @@ export const getUser: RequestHandler = async (req, res) => {
 
   try {
     if (!req.user?.isAdmin) {
-      res
-        .status(403)
-        .json({ success: false, message: "Bạn không có quyền truy cập" });
+      sendErrorRes(res, "Bạn không có quyền truy cập", 403);
       return; // Thêm `return` để kết thúc hàm nhưng không trả về giá trị.
     }
 
@@ -62,6 +56,7 @@ export const getUser: RequestHandler = async (req, res) => {
     const listings = Array.isArray(user)
       ? user.map((u) => ({
           id: u._id,
+          avatar: u.avatar?.url,
           name: u.name,
           email: u.email,
           address: u.address,
@@ -69,12 +64,10 @@ export const getUser: RequestHandler = async (req, res) => {
         }))
       : [];
 
-    res.status(200).json({ success: true, data: listings });
+    res.status(200).json({ data: listings });
+    console.log(listings);
   } catch (error) {
-    console.error("Lỗi khi truy vấn dữ liệu:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Đã xảy ra lỗi, vui lòng thử lại" });
+    sendErrorRes(res, "Đã xảy ra lỗi, vui lòng thử lại", 500);
   }
 };
 
@@ -124,7 +117,7 @@ export const updateUserStatus: RequestHandler = async (req, res) => {
   try {
     // Kiểm tra nếu ID người dùng không hợp lệ
     if (!isValidObjectId(userId)) {
-      res.status(422).json({ success: false, message: "Invalid user ID!" });
+      sendErrorRes(res, "Invalid user ID!", 422);
       return;
     }
 
@@ -137,7 +130,7 @@ export const updateUserStatus: RequestHandler = async (req, res) => {
 
     // Kiểm tra nếu người dùng không tồn tại
     if (!user) {
-      res.status(404).json({ success: false, message: "User not found!" });
+      sendErrorRes(res, "User not found!", 404);
       return;
     }
 
@@ -149,7 +142,7 @@ export const updateUserStatus: RequestHandler = async (req, res) => {
       const products = await ProductModel.find({ owner: userId }, "images");
 
       if (products.length === 0) {
-        res.status(404).json({ success: false, message: "No products found!" });
+        sendErrorRes(res, "Product not found!", 404);
         return;
       }
 
@@ -181,7 +174,6 @@ export const updateUserStatus: RequestHandler = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error updating user or deleting products:", error);
-    res.status(500).json({ success: false, message: "An error occurred!" });
+    sendErrorRes(res, "An error occurred!", 500);
   }
 };
