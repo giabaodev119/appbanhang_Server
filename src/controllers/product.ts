@@ -264,7 +264,7 @@ export const getProductByCategory: RequestHandler = async (req, res) => {
   res.json({ products: listings });
 };
 export const getLatestProduct: RequestHandler = async (req, res) => {
-  const products = await ProductModel.find().sort("-createdAt").limit(10);
+  const products = await ProductModel.find().sort("-createdAt").limit(20);
 
   const listings = products.map((p) => {
     return {
@@ -280,7 +280,7 @@ export const getLatestProduct: RequestHandler = async (req, res) => {
 };
 
 export const getListings: RequestHandler = async (req, res) => {
-  const { pageNo = "1", limit = "10" } = req.query as {
+  const { pageNo = "1", limit = "20" } = req.query as {
     pageNo: string;
     limit: string;
   };
