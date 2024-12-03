@@ -61,6 +61,7 @@ export const getUser: RequestHandler = async (req, res) => {
           email: u.email,
           address: u.address,
           isActive: u.isActive,
+          isAdmin: u.isAdmin,
         }))
       : [];
 
