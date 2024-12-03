@@ -61,11 +61,11 @@ export const getUser: RequestHandler = async (req, res) => {
           email: u.email,
           address: u.address,
           isActive: u.isActive,
+          isAdmin: u.isAdmin,
         }))
       : [];
 
     res.status(200).json({ data: listings });
-    console.log(listings);
   } catch (error) {
     sendErrorRes(res, "Đã xảy ra lỗi, vui lòng thử lại", 500);
   }
