@@ -66,7 +66,6 @@ export const getUser: RequestHandler = async (req, res) => {
       : [];
 
     res.status(200).json({ data: listings });
-    console.log(listings);
   } catch (error) {
     sendErrorRes(res, "Đã xảy ra lỗi, vui lòng thử lại", 500);
   }
