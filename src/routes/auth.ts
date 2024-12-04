@@ -47,7 +47,7 @@ authRouter.post(
   updatePassword
 );
 
-authRouter.patch("/update-profile", isAuth, updateProfile);
+authRouter.patch("/update-profile", isAuth, filePaser, updateProfile);
 authRouter.patch("/update-avatar", isAuth, filePaser, updateAvatar);
 authRouter.get("/profile/:id", isAuth, sendPublicProfile);
 
