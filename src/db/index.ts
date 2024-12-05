@@ -1,6 +1,6 @@
 import { connect } from "mongoose";
 
-const uri = "mongodb://localhost:27017/appbanhang";
+const uri = "mongodb://localhost:27017/apptest";
 connect(uri)
   .then(() => {
     console.log("db connect successfully");

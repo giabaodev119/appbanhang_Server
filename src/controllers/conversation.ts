@@ -1,5 +1,7 @@
+import { UploadApiResponse } from "cloudinary";
 import { RequestHandler } from "express";
 import { isValidObjectId, ObjectId, Types } from "mongoose";
+import cloudUploader from "src/cloud";
 import ConversationModel from "src/models/conversation";
 import UserModel from "src/models/user";
 import { sendErrorRes } from "src/utils/helper";
@@ -36,6 +38,13 @@ type PopulatedParticipant = {
   _id: ObjectId;
   name: string;
   avatar?: { url: string };
+};
+const uploadImage = (filePath: string): Promise<UploadApiResponse> => {
+  return cloudUploader.upload(filePath, {
+    width: 1000,
+    height: 1000,
+    crop: "fill",
+  });
 };
 
 export const getOrCreateConversation: RequestHandler = async (req, res) => {
@@ -219,4 +228,59 @@ export const updateChatSeenStatus: RequestHandler = async (req, res) => {
   //   }
   // );
   res.json({ message: "Cập nhật thành công" });
+};
+// upload image file to cloudinary
+export const uploadChatImage: RequestHandler = async (req, res) => {
+  const { conversationId } = req.params;
+  const { image } = req.files; // File ảnh từ client (đã xử lý qua middleware)
+
+  // Kiểm tra tính hợp lệ của conversationId
+  if (!isValidObjectId(conversationId)) {
+    return sendErrorRes(res, "Id cuộc trò chuyện không hợp lệ!", 422);
+  }
+
+  // Kiểm tra file ảnh hợp lệ
+  const imageFile = Array.isArray(image) ? image[0] : image;
+  if (!imageFile || !imageFile.mimetype?.startsWith("image")) {
+    return sendErrorRes(res, "File ảnh không hợp lệ!", 422);
+  }
+
+  // Tìm cuộc trò chuyện
+  const conversation = await ConversationModel.findById(conversationId);
+  if (!conversation) {
+    return sendErrorRes(res, "Không tìm thấy cuộc trò chuyện!", 404);
+  }
+
+  try {
+    // Upload ảnh lên Cloudinary
+    const { secure_url: url, public_id: id }: UploadApiResponse =
+      await cloudUploader.upload((image as any).filepath, {
+        width: 1000,
+        height: 1000,
+        crop: "fill",
+      });
+
+    const newChat = {
+      _id: new Types.ObjectId(), // Add a new ObjectId for the chat
+      sentBy: new Types.ObjectId(req.user.id), // Lấy ID người gửi từ req.user
+      content: url, // URL ảnh từ Cloudinary
+      timestamp: new Date(),
+      viewed: false,
+    };
+
+    // Cập nhật cuộc trò chuyện với tin nhắn mới
+    conversation.chats.push(newChat as any);
+    await conversation.save();
+
+    // Trả kết quả về client
+    res.json({
+      message: "Tải ảnh lên thành công!",
+      image: { url, id },
+      chat: newChat, // Trả lại chi tiết tin nhắn mới
+    });
+  } catch (error) {
+    // Xử lý lỗi trong quá trình upload hoặc lưu DB
+    console.error("Lỗi upload ảnh:", error);
+    return sendErrorRes(res, "Lỗi trong quá trình tải ảnh!", 500);
+  }
 };
