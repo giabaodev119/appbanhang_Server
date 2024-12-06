@@ -6,6 +6,8 @@ import ProductModel, { ProductDocument } from "models/product";
 import { UserDocument } from "models/user";
 import { sendErrorRes } from "utils/helper";
 import categories from "utils/categories";
+import dayjs from "dayjs";
+import cron from "node-cron";
 
 const uploadImage = (filePath: string): Promise<UploadApiResponse> => {
   return cloudUploader.upload(filePath, {
@@ -28,6 +30,8 @@ export const listNewProduct: RequestHandler = async (req, res) => {
 
   const address = provinceName + "_" + districtName;
 
+  const expirationDate = dayjs().add(30, "day").toISOString(); // Thêm ngày hết hạn (30 ngày sau)
+
   const newProduct = new ProductModel({
     owner: req.user.id,
     name,
@@ -36,6 +40,7 @@ export const listNewProduct: RequestHandler = async (req, res) => {
     description,
     purchasingDate,
     address,
+    expirationDate, // Lưu ngày hết hạn vào cơ sở dữ liệu
   });
 
   const { images } = req.files;
@@ -80,6 +85,7 @@ export const listNewProduct: RequestHandler = async (req, res) => {
 
   if (invalidFileType)
     return sendErrorRes(res, "File không hợp lệ, file phải là ảnh!", 422);
+
   await newProduct.save();
 
   res.status(201).json({ message: "Thêm sản phẩm mới thành công" });
@@ -412,3 +418,11 @@ export const searchByAddress: RequestHandler = async (req, res) => {
     return; // Kết thúc hàm.
   }
 };
+cron.schedule("0 0 * * *", async () => {
+  const now = new Date();
+  await ProductModel.updateMany(
+    { expirationDate: { $lte: now } },
+    { $set: { status: "expired" } } // Hoặc xóa bằng deleteMany nếu cần
+  );
+  console.log("Cron job ran: Expired products have been updated.");
+});

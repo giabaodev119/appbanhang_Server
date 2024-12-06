@@ -14,6 +14,7 @@ export interface ProductDocument extends Document {
   description: string;
   address?: string;
   isActive: boolean;
+  expirationDate: Date;
 }
 
 const schema = new Schema<ProductDocument>(
@@ -43,6 +44,10 @@ const schema = new Schema<ProductDocument>(
       required: true,
     },
     purchasingDate: {
+      type: Date,
+      required: true,
+    },
+    expirationDate: {
       type: Date,
       required: true,
     },
