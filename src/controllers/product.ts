@@ -3,7 +3,7 @@ import { RequestHandler } from "express";
 import { isValidObjectId, RootFilterQuery } from "mongoose";
 import cloudUploader, { cloudApi } from "src/cloud";
 import ProductModel, { ProductDocument } from "models/product";
-import { UserDocument } from "models/user";
+import UserModel, { UserDocument } from "models/user";
 import { sendErrorRes } from "utils/helper";
 import categories from "utils/categories";
 
@@ -379,7 +379,7 @@ export const searchByAddress: RequestHandler = async (req, res) => {
     const { ProvinceName, DistrictName } = req.query;
 
     if (!ProvinceName) {
-      res.status(400).json({ error: "ProvinceName is required." });
+      sendErrorRes(res, "ProvinceName is required.", 400);
       return; // Không trả về giá trị, chỉ kết thúc hàm.
     }
 
@@ -404,11 +404,65 @@ export const searchByAddress: RequestHandler = async (req, res) => {
         price: item.price,
       })),
     });
-    //console.log(res.json);
     return; // Đảm bảo không trả về giá trị nào.
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "An error occurred while searching." });
+    sendErrorRes(res, "An error occurred while searching.", 500);
     return; // Kết thúc hàm.
+  }
+};
+export const getSeller: RequestHandler = async (req, res) => {
+  try {
+    const { id } = req.query;
+
+    // Kiểm tra tham số đầu vào
+    if (!id) {
+      sendErrorRes(res, "sellerId is required.", 400);
+      return;
+    }
+
+    // Tìm thông tin người bán
+    const owner = await UserModel.findById(id).select(
+      "name email avatar address isAdmin isActive createdAt updatedAt"
+    );
+
+    if (!owner) {
+      sendErrorRes(res, "Seller not found.", 404);
+      return;
+    }
+
+    // Tìm tất cả sản phẩm thuộc về người bán này
+    const products = await ProductModel.find({
+      owner: id,
+      isActive: true,
+    }).select("name price category thumbnail address description");
+
+    // Trả về kết quả
+    res.json({
+      owner: {
+        id: owner._id,
+        name: owner.name,
+        email: owner.email,
+        avatar: owner.avatar?.url,
+        address: owner.address,
+        isAdmin: owner.isAdmin,
+        isActive: owner.isActive,
+        createdAt: owner.createdAt,
+      },
+      products: products.map((product) => ({
+        id: product._id,
+        name: product.name,
+        price: product.price,
+        category: product.category,
+        thumbnail: product.thumbnail,
+        address: product.address,
+        description: product.description,
+      })),
+    });
+  } catch (error) {
+    sendErrorRes(
+      res,
+      "An error occurred while retrieving seller information.",
+      500
+    );
   }
 };

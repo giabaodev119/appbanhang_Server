@@ -2,5 +2,5 @@
 /.env
 /src/db/
 
-/src/db/index
+src/db/index.ts
 

@@ -143,22 +143,40 @@ io.on("connection", (socket) => {
       console.error("Error handling chat:new:", error);
     }
   });
-  //handle sending message type image and save on cloudinary
+  const lockMap = new Map<string, boolean>(); // Map lưu trạng thái khóa theo conversationId
+
   socket.on("chat:image", async (data: IncomingMessage) => {
+    const { conversationId, to, message } = data;
+
+    if (!conversationId || !to || !message) {
+      console.error("Invalid chat:new data");
+      return;
+    }
+
+    // Kiểm tra khóa
+    if (lockMap.get(conversationId)) {
+      return;
+    }
+
+    // Đặt khóa
+    lockMap.set(conversationId, true);
+
     try {
-      const { conversationId, to, message } = data;
+      const conversation = await ConversationModel.findById(conversationId);
 
-      console.log(data.message.text);
+      const isDuplicate = conversation?.chats.some((chat) => {
+        const isSameContent = chat.content === message.text;
+        const isSameTime =
+          Math.abs(
+            chat.timestamp.getTime() - new Date(message.time).getTime()
+          ) < 1000; // Sai số dưới 1 giây
+        const isSameSender = chat.sentBy.toString() === message.user.id;
 
-      // convert to cloudinary image url
+        return isSameContent && isSameTime && isSameSender;
+      });
 
-      // const imageUrl = await uploadImage(message.text);
-
-      // console.log(imageUrl.secure_url);
-      // message.text = imageUrl.secure_url;
-
-      if (!conversationId || !to || !message) {
-        throw new Error("Invalid chat:new data");
+      if (isDuplicate) {
+        return;
       }
 
       await ConversationModel.findByIdAndUpdate(conversationId, {
@@ -182,7 +200,10 @@ io.on("connection", (socket) => {
 
       io.to(to).emit("chat:image", messageResponse);
     } catch (error) {
-      console.error("Error handling chat:new:", error);
+      console.error("Error handling chat:image:", error);
+    } finally {
+      // Giải phóng khóa
+      lockMap.delete(conversationId);
     }
   });
 

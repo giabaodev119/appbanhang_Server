@@ -18,6 +18,7 @@ export interface UserDocument extends Document {
     expiresAt: Date | null;
     isAvailable: boolean;
   };
+  createdAt: Date; // Thêm trường createdAt
 }
 
 interface Methods {

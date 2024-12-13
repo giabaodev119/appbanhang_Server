@@ -216,70 +216,55 @@ export const updateChatSeenStatus: RequestHandler = async (req, res) => {
     return sendErrorRes(res, "ConversationId hoặc PeerId không hợp lệ", 422);
 
   await updateSeenStatus(peerId, conversationId);
-  // await ConversationModel.findByIdAndUpdate(
-  //   conversationId,
-  //   {
-  //     $set: {
-  //       "chats.$[elem].viewed": true,
-  //     },
-  //   },
-  //   {
-  //     arrayFilters: [{ "elem.sentBy": peerId }],
-  //   }
-  // );
   res.json({ message: "Cập nhật thành công" });
 };
 // upload image file to cloudinary
 export const uploadChatImage: RequestHandler = async (req, res) => {
   const { conversationId } = req.params;
-  const { image } = req.files; // File ảnh từ client (đã xử lý qua middleware)
+  const { image } = req.files;
 
-  // Kiểm tra tính hợp lệ của conversationId
+  // Kiểm tra ID hợp lệ
   if (!isValidObjectId(conversationId)) {
     return sendErrorRes(res, "Id cuộc trò chuyện không hợp lệ!", 422);
   }
 
-  // Kiểm tra file ảnh hợp lệ
+  // Lấy file ảnh và kiểm tra hợp lệ
   const imageFile = Array.isArray(image) ? image[0] : image;
   if (!imageFile || !imageFile.mimetype?.startsWith("image")) {
     return sendErrorRes(res, "File ảnh không hợp lệ!", 422);
   }
 
-  // Tìm cuộc trò chuyện
   const conversation = await ConversationModel.findById(conversationId);
   if (!conversation) {
     return sendErrorRes(res, "Không tìm thấy cuộc trò chuyện!", 404);
   }
 
   try {
-    // Upload ảnh lên Cloudinary
+    // Đảm bảo upload chỉ xảy ra một lần
     const { secure_url: url, public_id: id }: UploadApiResponse =
-      await cloudUploader.upload((image as any).filepath, {
+      await cloudUploader.upload(imageFile.filepath, {
         width: 1000,
         height: 1000,
         crop: "fill",
       });
 
     const newChat = {
-      _id: new Types.ObjectId(), // Add a new ObjectId for the chat
-      sentBy: new Types.ObjectId(req.user.id), // Lấy ID người gửi từ req.user
-      content: url, // URL ảnh từ Cloudinary
+      _id: new Types.ObjectId(),
+      sentBy: new Types.ObjectId(req.user.id),
+      content: url,
       timestamp: new Date(),
       viewed: false,
     };
 
-    // Cập nhật cuộc trò chuyện với tin nhắn mới
     conversation.chats.push(newChat as any);
     await conversation.save();
 
-    // Trả kết quả về client
     res.json({
       message: "Tải ảnh lên thành công!",
       image: { url, id },
-      chat: newChat, // Trả lại chi tiết tin nhắn mới
+      chat: newChat,
     });
   } catch (error) {
-    // Xử lý lỗi trong quá trình upload hoặc lưu DB
     console.error("Lỗi upload ảnh:", error);
     return sendErrorRes(res, "Lỗi trong quá trình tải ảnh!", 500);
   }
