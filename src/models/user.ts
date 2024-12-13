@@ -11,6 +11,7 @@ export interface UserDocument extends Document {
   address?: string;
   isAdmin: boolean;
   isActive: boolean;
+  createdAt: Date; // Thêm trường createdAt
 }
 
 interface Methods {
