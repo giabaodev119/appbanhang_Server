@@ -8,6 +8,7 @@ import mail from "src/utils/mail";
 import PassResetTokenModel from "src/models/passwordResetToken";
 import { isValidObjectId } from "mongoose";
 import cloudUploader from "src/cloud";
+import { profile } from "console";
 
 const VERIFICATION_LINK = process.env.VERIFICATION_LINK;
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -127,6 +128,7 @@ export const signIn: RequestHandler = async (req, res) => {
       address: user?.address,
       isAdmin: user.isAdmin,
       isActive: user.isActive,
+      premiumStatus: user.premiumStatus,
     },
     tokens: { refresh: refreshToken, access: accessToken },
   });
@@ -176,6 +178,7 @@ export const grantAccessToken: RequestHandler = async (req, res) => {
       verified: user.verified,
       avatar: user.avatar?.url,
       address: user?.address,
+      premiumStatus: user.premiumStatus,
     },
     tokens: { refresh: newRefreshToken, access: newAccessToken },
   });
@@ -309,6 +312,32 @@ export const sendPublicProfile: RequestHandler = async (req, res) => {
       name: user.name,
       avatar: user.avatar?.url,
       address: user?.address,
+      premiumStatus: user.premiumStatus,
     },
+  });
+};
+
+export const cancelPreniumStatus: RequestHandler = async (req, res) => {
+  const user = await UserModel.findById(req.user.id);
+  if (!user) {
+    return sendErrorRes(res, "Không tìm thấy user!", 404);
+  }
+
+  if (!user.premiumStatus) {
+    return sendErrorRes(res, "Tài khoản không có gói premium!", 422);
+  }
+  user.premiumStatus = {
+    subscription: "",
+    registeredAt: null,
+    expiresAt: null,
+    isAvailable: false,
+  };
+
+  await user.save();
+
+  res.json({
+    message: "Hủy gói premium thành công!",
+    profile: { ...req.user, premiumStatus: user.premiumStatus },
+    success: true,
   });
 };
