@@ -17,12 +17,16 @@ import { updateSeenStatus } from "./controllers/conversation";
 import adminRouter from "./routes/admin";
 import { UploadApiResponse } from "cloudinary";
 import cloudUploader from "./cloud";
+import paymentRouter from "./routes/payment";
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   path: "/socket-message",
 });
+
+app.set("views", path.join(__dirname, "views"));
+app.set("view engine", "pug");
 
 app.use(morgan("dev"));
 app.use(express.static("src/public"));
@@ -34,6 +38,7 @@ app.use("/auth", authRouter);
 app.use("/product", productRouter);
 app.use("/admin", adminRouter);
 app.use("/conversation", conversationRouter);
+app.use("/order", paymentRouter);
 
 //SOCKET IO
 io.use((socket, next) => {
@@ -147,9 +152,9 @@ io.on("connection", (socket) => {
 
       // convert to cloudinary image url
 
-      const imageUrl = await uploadImage(message.text);
+      // const imageUrl = await uploadImage(message.text);
 
-      console.log(imageUrl.secure_url);
+      // console.log(imageUrl.secure_url);
       // message.text = imageUrl.secure_url;
 
       if (!conversationId || !to || !message) {

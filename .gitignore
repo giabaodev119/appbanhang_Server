@@ -1,3 +1,6 @@
 /node_modules
 /.env
 /src/db/
+
+/src/db/index
+
