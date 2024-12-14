@@ -243,14 +243,18 @@ export const updatePassword: RequestHandler = async (req, res) => {
 };
 
 export const updateProfile: RequestHandler = async (req, res) => {
-  const { name } = req.body;
+  const { name, provinceName, districtName } = req.body;
+  console.log(typeof name, typeof provinceName, typeof districtName);
+
   if (typeof name !== "string" || name.trim().length < 3) {
     return sendErrorRes(res, "Tên không hợp lệ", 422);
   }
 
-  await UserModel.findByIdAndUpdate(req.user.id, { name });
+  const address = provinceName + "_" + districtName;
 
-  res.json({ profile: { ...req.user, name } });
+  await UserModel.findByIdAndUpdate(req.user.id, { name, address });
+
+  res.json({ profile: { ...req.user, name, address } });
 };
 
 export const updateAvatar: RequestHandler = async (req, res) => {

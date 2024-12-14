@@ -30,7 +30,7 @@ export const listNewProduct: RequestHandler = async (req, res) => {
 
   const address = provinceName + "_" + districtName;
 
-  const expirationDate = dayjs().add(30, "day").toISOString(); // Thêm ngày hết hạn (30 ngày sau)
+  const expirationDate = dayjs().add(1, "day").toISOString(); // Thêm ngày hết hạn (30 ngày sau)
 
   const newProduct = new ProductModel({
     owner: req.user.id,
@@ -89,6 +89,14 @@ export const listNewProduct: RequestHandler = async (req, res) => {
   await newProduct.save();
 
   res.status(201).json({ message: "Thêm sản phẩm mới thành công" });
+  cron.schedule("0 0 * * *", async () => {
+    const now = new Date();
+    await ProductModel.updateMany(
+      { expirationDate: { $lte: now } },
+      { $set: { status: "expired" } } // Hoặc xóa bằng deleteMany nếu cần
+    );
+    console.log("Cron job ran: Expired products have been updated.");
+  });
 };
 
 export const updateProduct: RequestHandler = async (req, res) => {
@@ -270,7 +278,7 @@ export const getProductByCategory: RequestHandler = async (req, res) => {
   res.json({ products: listings });
 };
 export const getLatestProduct: RequestHandler = async (req, res) => {
-  const products = await ProductModel.find().sort("-createdAt").limit(10);
+  const products = await ProductModel.find().sort("-createdAt").limit(20);
 
   const listings = products.map((p) => {
     return {
@@ -286,7 +294,7 @@ export const getLatestProduct: RequestHandler = async (req, res) => {
 };
 
 export const getListings: RequestHandler = async (req, res) => {
-  const { pageNo = "1", limit = "10" } = req.query as {
+  const { pageNo = "1", limit = "20" } = req.query as {
     pageNo: string;
     limit: string;
   };
@@ -418,11 +426,3 @@ export const searchByAddress: RequestHandler = async (req, res) => {
     return; // Kết thúc hàm.
   }
 };
-cron.schedule("0 0 * * *", async () => {
-  const now = new Date();
-  await ProductModel.updateMany(
-    { expirationDate: { $lte: now } },
-    { $set: { status: "expired" } } // Hoặc xóa bằng deleteMany nếu cần
-  );
-  console.log("Cron job ran: Expired products have been updated.");
-});

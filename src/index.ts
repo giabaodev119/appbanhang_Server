@@ -15,6 +15,8 @@ import conversationRouter from "./routes/conversation";
 import ConversationModel from "./models/conversation";
 import { updateSeenStatus } from "./controllers/conversation";
 import adminRouter from "./routes/admin";
+import { UploadApiResponse } from "cloudinary";
+import cloudUploader from "./cloud";
 
 const app = express();
 const server = http.createServer(app);
@@ -96,6 +98,13 @@ io.on("connection", (socket) => {
   // Tham gia room theo userId
   socket.join(userId);
 
+  const uploadImage = (filePath: string): Promise<UploadApiResponse> => {
+    return cloudUploader.upload(filePath, {
+      width: 1000,
+      height: 1000,
+      crop: "fill",
+    });
+  };
   // Xử lý gửi tin nhắn mới
   socket.on("chat:new", async (data: IncomingMessage) => {
     try {
@@ -125,6 +134,48 @@ io.on("connection", (socket) => {
       };
 
       io.to(to).emit("chat:message", messageResponse);
+    } catch (error) {
+      console.error("Error handling chat:new:", error);
+    }
+  });
+  //handle sending message type image and save on cloudinary
+  socket.on("chat:image", async (data: IncomingMessage) => {
+    try {
+      const { conversationId, to, message } = data;
+
+      console.log(data.message.text);
+
+      // convert to cloudinary image url
+
+      const imageUrl = await uploadImage(message.text);
+
+      console.log(imageUrl.secure_url);
+      // message.text = imageUrl.secure_url;
+
+      if (!conversationId || !to || !message) {
+        throw new Error("Invalid chat:new data");
+      }
+
+      await ConversationModel.findByIdAndUpdate(conversationId, {
+        $push: {
+          chats: {
+            sentBy: message.user.id,
+            content: message.text,
+            timestamp: message.time,
+          },
+        },
+      });
+
+      const messageResponse: OutgoingMessageResponse = {
+        from: {
+          id: message.user.id,
+          name: message.user.name,
+        },
+        conversationId,
+        message: { ...message, viewed: false },
+      };
+
+      io.to(to).emit("chat:image", messageResponse);
     } catch (error) {
       console.error("Error handling chat:new:", error);
     }
