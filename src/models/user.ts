@@ -12,6 +12,7 @@ export interface UserDocument extends Document {
   address?: string;
   isAdmin: boolean;
   isActive: boolean;
+  phoneNumber: string;
   premiumStatus?: {
     subscription: String;
     registeredAt: Date | null;
@@ -39,6 +40,9 @@ const userSchema = new Schema<UserDocument, {}, Methods>(
     name: {
       type: String,
       required: true,
+    },
+    phoneNumber: {
+      type: String,
     },
     verified: {
       type: Boolean,
