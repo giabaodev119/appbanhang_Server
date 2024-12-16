@@ -1,5 +1,6 @@
 import { hash, compare, genSalt } from "bcrypt";
 import { model, Schema, Document } from "mongoose";
+import subcriptions from "src/utils/subcriptions";
 
 export interface UserDocument extends Document {
   name: string;
@@ -11,6 +12,13 @@ export interface UserDocument extends Document {
   address?: string;
   isAdmin: boolean;
   isActive: boolean;
+  premiumStatus?: {
+    subscription: String;
+    registeredAt: Date | null;
+    expiresAt: Date | null;
+    isAvailable: boolean;
+  };
+  createdAt: Date; // Thêm trường createdAt
 }
 
 interface Methods {
@@ -53,6 +61,12 @@ const userSchema = new Schema<UserDocument, {}, Methods>(
       url: String,
       id: String,
     },
+    premiumStatus: {
+      subscription: { type: String, enum: [...subcriptions] },
+      registeredAt: { type: Date },
+      expiresAt: { type: Date },
+      isAvailable: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );
@@ -69,6 +83,13 @@ userSchema.pre("save", async function (next) {
 userSchema.methods.comparePassword = async function (password) {
   return await compare(password, this.password);
 };
+
+userSchema.pre("save", function (next) {
+  if (this.premiumStatus && this.premiumStatus.expiresAt) {
+    this.premiumStatus.isAvailable = new Date() < this.premiumStatus.expiresAt;
+  }
+  next();
+});
 
 const UserModel = model("User", userSchema);
 export default UserModel;

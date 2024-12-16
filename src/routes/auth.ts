@@ -13,6 +13,7 @@ import {
   updateProfile,
   updateAvatar,
   sendPublicProfile,
+  cancelPreniumStatus,
 } from "controllers/auth";
 import validate from "middleware/validator";
 import {
@@ -50,5 +51,5 @@ authRouter.post(
 authRouter.patch("/update-profile", isAuth, filePaser, updateProfile);
 authRouter.patch("/update-avatar", isAuth, filePaser, updateAvatar);
 authRouter.get("/profile/:id", isAuth, sendPublicProfile);
-
+authRouter.patch("/cancelprenium", isAuth, cancelPreniumStatus);
 export default authRouter;

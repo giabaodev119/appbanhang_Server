@@ -14,7 +14,8 @@ export interface ProductDocument extends Document {
   description: string;
   address?: string;
   isActive: boolean;
-  expirationDate: Date;
+  isSold: boolean;
+  createdAt: Date; // Thêm trường createdAt
 }
 
 const schema = new Schema<ProductDocument>(
@@ -47,16 +48,22 @@ const schema = new Schema<ProductDocument>(
       type: Date,
       required: true,
     },
-    expirationDate: {
+    createdAt: {
       type: Date,
-      required: true,
+      default: Date.now,
+      expires: 2592000,
     },
+
     address: {
       type: String,
     },
     isActive: {
       type: Boolean,
       default: true,
+    },
+    isSold: {
+      type: Boolean,
+      default: false,
     },
     images: [
       {

@@ -13,6 +13,12 @@ interface UserProfile {
   address?: string;
   isAdmin: boolean;
   isActive: boolean;
+  premiumStatus?: {
+    subscription: String;
+    registeredAt: Date | null;
+    expiresAt: Date | null;
+    isAvailable: boolean;
+  };
 }
 
 declare global {
@@ -45,6 +51,7 @@ export const isAuth: RequestHandler = async (req, res, next) => {
       address: user.address,
       isAdmin: user.isAdmin,
       isActive: user.isActive,
+      premiumStatus: user.premiumStatus,
     };
 
     next();

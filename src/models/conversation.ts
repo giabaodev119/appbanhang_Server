@@ -3,7 +3,7 @@ import { Document, model, ObjectId, Schema } from "mongoose";
 interface Chat {
   _id: ObjectId;
   sentBy: ObjectId;
-  connect: string;
+  content: string;
   timestamp: Date;
   viewed: boolean;
 }
