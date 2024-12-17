@@ -274,6 +274,7 @@ export const getLatestProduct: RequestHandler = async (req, res) => {
       category: p.category,
       price: p.price,
       address: p?.address,
+      isActive: p.isActive,
     };
   });
   res.json({ products: listings });
@@ -325,6 +326,7 @@ export const searchProducts: RequestHandler = async (req, res) => {
       name: product.name,
       thumbnail: product.thumbnail,
       address: product.address,
+      isActive: product.isActive,
     })),
   });
 };
@@ -367,6 +369,7 @@ export const getByAddress: RequestHandler = async (req, res) => {
         thumbnail: product?.thumbnail,
         category: product.category,
         price: product.price,
+        isActive: product.isActive,
       })),
     });
   } catch (error) {
@@ -402,6 +405,7 @@ export const searchByAddress: RequestHandler = async (req, res) => {
         thumbnail: item?.thumbnail,
         category: item.category,
         price: item.price,
+        isActive: item.isActive,
       })),
     });
     return; // Đảm bảo không trả về giá trị nào.

@@ -8,7 +8,6 @@ import mail from "src/utils/mail";
 import PassResetTokenModel from "src/models/passwordResetToken";
 import { isValidObjectId } from "mongoose";
 import cloudUploader from "src/cloud";
-import { profile } from "console";
 
 const VERIFICATION_LINK = process.env.VERIFICATION_LINK;
 const JWT_SECRET = process.env.JWT_SECRET!;
@@ -16,7 +15,8 @@ const PASSWORD_RESET_LINK = process.env.PASSWORD_RESET_LINK!;
 
 export const createNewUser: RequestHandler = async (req, res) => {
   // đọc dữ liệu nhận vào
-  const { email, password, name, provinceName, districtName } = req.body;
+  const { email, password, name, provinceName, districtName, phoneNumber } =
+    req.body;
   // kiểm tra user đã tồn tại hay chưa
   const existingUser = await UserModel.findOne({ email });
 
@@ -30,7 +30,13 @@ export const createNewUser: RequestHandler = async (req, res) => {
     );
   }
   // tạo user mới nếu email chưa tồn tại trong db
-  const user = await UserModel.create({ email, password, name, address });
+  const user = await UserModel.create({
+    email,
+    password,
+    name,
+    address,
+    phoneNumber,
+  });
 
   // tạo và lưu trữ verification token
   const token = crypto.randomBytes(36).toString("hex");
@@ -129,6 +135,7 @@ export const signIn: RequestHandler = async (req, res) => {
       isAdmin: user.isAdmin,
       isActive: user.isActive,
       premiumStatus: user.premiumStatus,
+      phoneNumber: user.phoneNumber,
     },
     tokens: { refresh: refreshToken, access: accessToken },
   });
