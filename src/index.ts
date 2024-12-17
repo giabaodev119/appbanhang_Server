@@ -19,6 +19,7 @@ import { UploadApiResponse } from "cloudinary";
 import cloudUploader from "./cloud";
 import paymentRouter from "./routes/payment";
 import "./controllers/productCleanupJob";
+import "./utils/updatePremiumStatus";
 
 const app = express();
 const server = http.createServer(app);
