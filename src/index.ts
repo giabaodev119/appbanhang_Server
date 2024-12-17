@@ -18,6 +18,7 @@ import adminRouter from "./routes/admin";
 import { UploadApiResponse } from "cloudinary";
 import cloudUploader from "./cloud";
 import paymentRouter from "./routes/payment";
+import "./controllers/productCleanupJob";
 import "./utils/updatePremiumStatus";
 
 const app = express();

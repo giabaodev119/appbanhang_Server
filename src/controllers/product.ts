@@ -6,6 +6,7 @@ import ProductModel, { ProductDocument } from "models/product";
 import UserModel, { UserDocument } from "models/user";
 import { sendErrorRes } from "utils/helper";
 import categories from "utils/categories";
+import moment from "moment";
 
 const uploadImage = (filePath: string): Promise<UploadApiResponse> => {
   return cloudUploader.upload(filePath, {
@@ -16,73 +17,107 @@ const uploadImage = (filePath: string): Promise<UploadApiResponse> => {
 };
 
 export const listNewProduct: RequestHandler = async (req, res) => {
-  const {
-    name,
-    price,
-    category,
-    description,
-    purchasingDate,
-    provinceName,
-    districtName,
-  } = req.body;
+  try {
+    const {
+      name,
+      price,
+      category,
+      description,
+      purchasingDate,
+      provinceName,
+      districtName,
+    } = req.body;
 
-  const address = provinceName + "_" + districtName;
+    // Kiểm tra thông tin người dùng
+    const user = await UserModel.findById(req.user.id); // Lấy thông tin đầy đủ từ DB
+    if (!user) {
+      return sendErrorRes(res, "Không thể xác thực người dùng!", 401);
+    }
 
-  const newProduct = new ProductModel({
-    owner: req.user.id,
-    name,
-    price,
-    category,
-    description,
-    purchasingDate,
-    address,
-  });
+    // Kiểm tra trạng thái premium
+    if (user.premiumStatus?.isAvailable) {
+      console.log("Người dùng premium, không giới hạn đăng sản phẩm!");
+    } else {
+      // Kiểm tra số lượng sản phẩm đã đăng trong tháng
+      const currentMonthStart = moment().startOf("month");
+      const currentMonthEnd = moment().endOf("month");
 
-  const { images } = req.files;
+      const productCountThisMonth = await ProductModel.countDocuments({
+        owner: user.id,
+        createdAt: {
+          $gte: currentMonthStart.toDate(),
+          $lt: currentMonthEnd.toDate(),
+        },
+      });
 
-  const isMultipleImages = Array.isArray(images);
-
-  let invalidFileType = false;
-
-  if (isMultipleImages && images.length > 5) {
-    return sendErrorRes(res, "Chỉ có thể tải lên tối đa 5 ảnh!", 422);
-  }
-
-  if (isMultipleImages) {
-    for (let img of images) {
-      if (!img.mimetype?.startsWith("image")) {
-        invalidFileType = true;
-        break;
+      if (productCountThisMonth >= 10) {
+        return sendErrorRes(
+          res,
+          "Bạn chỉ có thể tạo tối đa 10 sản phẩm mỗi tháng!",
+          403
+        );
       }
     }
-  } else {
-    if (images)
-      if (!images.mimetype?.startsWith("image")) {
-        invalidFileType = true;
-      }
-  }
 
-  if (isMultipleImages) {
-    const uploadPromise = images.map((file) => uploadImage(file.filepath));
-    const uploadResults = await Promise.all(uploadPromise);
-    newProduct.images = uploadResults.map(({ secure_url, public_id }) => {
-      return { url: secure_url, id: public_id };
+    // Tạo sản phẩm mới
+    const address = `${provinceName}_${districtName}`;
+    const newProduct = new ProductModel({
+      owner: user.id,
+      name,
+      price,
+      category,
+      description,
+      purchasingDate,
+      address,
     });
 
-    newProduct.thumbnail = newProduct.images[0].url;
-  } else {
-    if (images) {
-      const { secure_url, public_id } = await uploadImage(images.filepath);
-      newProduct.images = [{ url: secure_url, id: public_id }];
-      newProduct.thumbnail = secure_url;
+    // Kiểm tra và upload ảnh
+    const { images } = req.files;
+    const isMultipleImages = Array.isArray(images);
+    let invalidFileType = false;
+
+    if (isMultipleImages && images.length > 5) {
+      return sendErrorRes(res, "Chỉ có thể tải lên tối đa 5 ảnh!", 422);
     }
+
+    if (isMultipleImages) {
+      for (let img of images) {
+        if (!img.mimetype?.startsWith("image")) {
+          invalidFileType = true;
+          break;
+        }
+      }
+    } else {
+      if (images && !images.mimetype?.startsWith("image")) {
+        invalidFileType = true;
+      }
+    }
+
+    if (isMultipleImages) {
+      const uploadPromise = images.map((file) => uploadImage(file.filepath));
+      const uploadResults = await Promise.all(uploadPromise);
+      newProduct.images = uploadResults.map(({ secure_url, public_id }) => {
+        return { url: secure_url, id: public_id };
+      });
+
+      newProduct.thumbnail = newProduct.images[0].url;
+    } else {
+      if (images) {
+        const { secure_url, public_id } = await uploadImage(images.filepath);
+        newProduct.images = [{ url: secure_url, id: public_id }];
+        newProduct.thumbnail = secure_url;
+      }
+    }
+
+    if (invalidFileType)
+      return sendErrorRes(res, "File không hợp lệ, file phải là ảnh!", 422);
+
+    await newProduct.save();
+    res.status(201).json({ message: "Thêm sản phẩm mới thành công" });
+  } catch (error) {
+    console.error("Error creating new product:", error);
+    sendErrorRes(res, "Có lỗi xảy ra khi tạo sản phẩm mới!", 500);
   }
-
-  if (invalidFileType)
-    return sendErrorRes(res, "File không hợp lệ, file phải là ảnh!", 422);
-  await newProduct.save();
-
-  res.status(201).json({ message: "Thêm sản phẩm mới thành công" });
 };
 
 export const updateProduct: RequestHandler = async (req, res) => {
@@ -274,6 +309,7 @@ export const getLatestProduct: RequestHandler = async (req, res) => {
       category: p.category,
       price: p.price,
       address: p?.address,
+      isSold: p.isSold,
       isActive: p.isActive,
     };
   });
@@ -302,6 +338,7 @@ export const getListings: RequestHandler = async (req, res) => {
       date: p.purchasingDate,
       description: p.description,
       address: p.address,
+      isSold: p.isSold,
       seller: {
         id: req.user.id,
         name: req.user.name,
@@ -369,6 +406,7 @@ export const getByAddress: RequestHandler = async (req, res) => {
         thumbnail: product?.thumbnail,
         category: product.category,
         price: product.price,
+        isSold: product.isSold,
         isActive: product.isActive,
       })),
     });
@@ -468,5 +506,53 @@ export const getSeller: RequestHandler = async (req, res) => {
       "An error occurred while retrieving seller information.",
       500
     );
+  }
+};
+export const markProductAsSold: RequestHandler = async (req, res) => {
+  try {
+    const productId = req.params.id; // Lấy ID sản phẩm
+    const { isSold } = req.body; // Trạng thái isSold
+
+    if (!req.body || typeof isSold !== "boolean") {
+      return sendErrorRes(
+        res,
+        "Dữ liệu không hợp lệ! Trường 'isSold' phải là kiểu boolean.",
+        400
+      );
+    }
+
+    const userId = req.user?.id; // ID người dùng hiện tại
+    if (!userId) {
+      return sendErrorRes(
+        res,
+        "Bạn cần đăng nhập để thực hiện hành động này!",
+        401
+      );
+    }
+
+    // Tìm sản phẩm và cập nhật
+    const updatedProduct = await ProductModel.findOneAndUpdate(
+      { _id: productId, owner: userId },
+      { isSold },
+      { new: true }
+    ).lean(); // Trả về object JS thông thường
+
+    if (!updatedProduct) {
+      return sendErrorRes(
+        res,
+        "Sản phẩm không tồn tại hoặc bạn không có quyền thay đổi trạng thái!",
+        404
+      );
+    }
+
+    res.status(200).json({
+      message: `Sản phẩm đã được đánh dấu là ${
+        isSold ? "đã bán" : "chưa bán"
+      } thành công!`,
+      product: updatedProduct,
+    });
+  } catch (error) {
+    console.error("Lỗi khi cập nhật trạng thái sản phẩm:", error);
+    sendErrorRes(res, "Lỗi máy chủ, vui lòng thử lại sau!", 500);
   }
 };

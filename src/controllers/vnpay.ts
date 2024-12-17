@@ -67,7 +67,7 @@ export const createPaymentUrl: RequestHandler = async (req, res, next) => {
     // let vnpUrl = config.get<string>("vnp_Url");
     let vnpUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
     // const returnUrl = config.get<string>("vnp_ReturnUrl");
-    const returnUrl = "http://192.168.1.5:8000/order/vnpay_return";
+    const returnUrl = "http://192.168.1.2:8000/order/vnpay_return";
 
     let amount = req.body.amount;
     let bankCode = req.body.bankCode;
