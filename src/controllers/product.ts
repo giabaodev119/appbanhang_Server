@@ -35,9 +35,8 @@ export const listNewProduct: RequestHandler = async (req, res) => {
     }
 
     // Kiểm tra trạng thái premium
-    if (user.premiumStatus?.isAvailable) {
-      console.log("Người dùng premium, không giới hạn đăng sản phẩm!");
-    } else {
+    let remainingPosts = 10;
+    if (!user.premiumStatus?.isAvailable) {
       // Kiểm tra số lượng sản phẩm đã đăng trong tháng
       const currentMonthStart = moment().startOf("month");
       const currentMonthEnd = moment().endOf("month");
@@ -49,6 +48,8 @@ export const listNewProduct: RequestHandler = async (req, res) => {
           $lt: currentMonthEnd.toDate(),
         },
       });
+
+      remainingPosts = 10 - productCountThisMonth;
 
       if (productCountThisMonth >= 10) {
         return sendErrorRes(
@@ -113,7 +114,20 @@ export const listNewProduct: RequestHandler = async (req, res) => {
       return sendErrorRes(res, "File không hợp lệ, file phải là ảnh!", 422);
 
     await newProduct.save();
-    res.status(201).json({ message: "Thêm sản phẩm mới thành công" });
+
+    // Tính toán số bài đăng còn lại sau khi thêm sản phẩm
+    if (!user.premiumStatus?.isAvailable) {
+      remainingPosts -= 1;
+    }
+
+    // Chỉ thông báo đơn giản nếu là người dùng premium
+    const successMessage = user.premiumStatus?.isAvailable
+      ? "Thêm sản phẩm mới thành công"
+      : `Thêm sản phẩm mới thành công, số lượt đăng sản phẩm còn lại của bạn là ${remainingPosts}`;
+
+    res.status(201).json({
+      message: successMessage,
+    });
   } catch (error) {
     console.error("Error creating new product:", error);
     sendErrorRes(res, "Có lỗi xảy ra khi tạo sản phẩm mới!", 500);
@@ -266,6 +280,7 @@ export const getProductDetail: RequestHandler = async (req, res) => {
         id: product.owner._id,
         name: product.owner.name,
         avatar: product.owner.avatar?.url,
+        phoneNumber: product.owner.phoneNumber,
       },
     },
   });
@@ -444,6 +459,7 @@ export const searchByAddress: RequestHandler = async (req, res) => {
         category: item.category,
         price: item.price,
         isActive: item.isActive,
+        isSold: item.isSold,
       })),
     });
     return; // Đảm bảo không trả về giá trị nào.
@@ -476,7 +492,7 @@ export const getSeller: RequestHandler = async (req, res) => {
     const products = await ProductModel.find({
       owner: id,
       isActive: true,
-    }).select("name price category thumbnail address description");
+    }).select("name price category thumbnail address description isSold");
 
     // Trả về kết quả
     res.json({
@@ -498,6 +514,7 @@ export const getSeller: RequestHandler = async (req, res) => {
         thumbnail: product.thumbnail,
         address: product.address,
         description: product.description,
+        isSold: product.isSold, // Thêm isSold vào kết quả trả về
       })),
     });
   } catch (error) {
@@ -508,6 +525,7 @@ export const getSeller: RequestHandler = async (req, res) => {
     );
   }
 };
+
 export const markProductAsSold: RequestHandler = async (req, res) => {
   try {
     const productId = req.params.id; // Lấy ID sản phẩm
