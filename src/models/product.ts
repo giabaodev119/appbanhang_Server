@@ -15,6 +15,8 @@ export interface ProductDocument extends Document {
   address?: string;
   isActive: boolean;
   isSold: boolean;
+  isFavorite: boolean;
+
   createdAt: Date; // Thêm trường createdAt
 }
 
@@ -65,6 +67,11 @@ const schema = new Schema<ProductDocument>(
       type: Boolean,
       default: false,
     },
+    isFavorite: {
+      type: Boolean,
+      default: false,
+    },
+
     images: [
       {
         type: Object,

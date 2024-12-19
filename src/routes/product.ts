@@ -47,4 +47,5 @@ productRouter.get("/search-byaddress", searchByAddress);
 productRouter.get("/get-byaddress", isAuth, getByAddress);
 productRouter.get("/get-byseller", getSeller);
 productRouter.patch("/:id/sold", isAuth, markProductAsSold);
+
 export default productRouter;
