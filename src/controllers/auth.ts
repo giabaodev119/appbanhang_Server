@@ -103,6 +103,13 @@ export const signIn: RequestHandler = async (req, res) => {
       403
     );
 
+  if (!user.isActive)
+    return sendErrorRes(
+      res,
+      "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với quản trị viên để biết thêm chi tiết.",
+      403
+    );
+
   const isMatched = await user.comparePassword(password);
   if (!isMatched)
     return sendErrorRes(
