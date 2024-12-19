@@ -580,3 +580,42 @@ export const markProductAsSold: RequestHandler = async (req, res) => {
     sendErrorRes(res, "Lỗi máy chủ, vui lòng thử lại sau!", 500);
   }
 };
+export const getPremiumUserProducts: RequestHandler = async (req, res) => {
+  try {
+    // Tìm tất cả người dùng có trạng thái premium
+    const premiumUsers = await UserModel.find({
+      "premiumStatus.isAvailable": true,
+    }).select("_id");
+
+    const premiumUserIds = premiumUsers.map((user) => user._id);
+
+    // Tìm tất cả sản phẩm thuộc về người dùng premium
+    const products = await ProductModel.find({
+      owner: { $in: premiumUserIds },
+      isActive: true,
+    }).select(
+      "name price category thumbnail address description isActive isSold"
+    );
+
+    // Trả về kết quả
+    res.json({
+      products: products.map((product) => ({
+        id: product._id,
+        name: product.name,
+        price: product.price,
+        category: product.category,
+        thumbnail: product.thumbnail,
+        address: product.address,
+        description: product.description,
+        isActive: product.isActive,
+        isSold: product.isSold,
+      })),
+    });
+  } catch (error) {
+    sendErrorRes(
+      res,
+      "An error occurred while retrieving premium user products.",
+      500
+    );
+  }
+};

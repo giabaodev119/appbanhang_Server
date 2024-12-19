@@ -260,8 +260,8 @@ export const updatePassword: RequestHandler = async (req, res) => {
 };
 
 export const updateProfile: RequestHandler = async (req, res) => {
-  const { name, provinceName, districtName } = req.body;
-  console.log(typeof name, typeof provinceName, typeof districtName);
+  const { name, provinceName, districtName, phoneNumber } = req.body;
+  console.log(name, provinceName, districtName, phoneNumber);
 
   if (typeof name !== "string" || name.trim().length < 3) {
     return sendErrorRes(res, "Tên không hợp lệ", 422);
@@ -269,9 +269,13 @@ export const updateProfile: RequestHandler = async (req, res) => {
 
   const address = provinceName + "_" + districtName;
 
-  await UserModel.findByIdAndUpdate(req.user.id, { name, address });
+  await UserModel.findByIdAndUpdate(req.user.id, {
+    name,
+    address,
+    phoneNumber,
+  });
 
-  res.json({ profile: { ...req.user, name, address } });
+  res.json({ profile: { ...req.user, name, address, phoneNumber } });
 };
 
 export const updateAvatar: RequestHandler = async (req, res) => {

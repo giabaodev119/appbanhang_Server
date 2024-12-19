@@ -13,6 +13,7 @@ interface UserProfile {
   address?: string;
   isAdmin: boolean;
   isActive: boolean;
+  phoneNumber: string;
   premiumStatus?: {
     subscription: String;
     registeredAt: Date | null;
@@ -52,6 +53,7 @@ export const isAuth: RequestHandler = async (req, res, next) => {
       isAdmin: user.isAdmin,
       isActive: user.isActive,
       premiumStatus: user.premiumStatus,
+      phoneNumber: user.phoneNumber,
     };
 
     next();
