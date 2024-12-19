@@ -314,42 +314,80 @@ export const getProductByCategory: RequestHandler = async (req, res) => {
   res.json({ products: listings });
 };
 export const getLatestProduct: RequestHandler = async (req, res) => {
-  const products = await ProductModel.find().sort("-createdAt").limit(20);
-
-  const listings = products.map((p) => {
-    return {
-      id: p._id,
-      name: p.name,
-      thumbnail: p.thumbnail,
-      category: p.category,
-      price: p.price,
-      address: p?.address,
-      isSold: p.isSold,
-      isActive: p.isActive,
-    };
-  });
-  res.json({ products: listings });
-};
-
-export const getListings: RequestHandler = async (req, res) => {
-  const { pageNo = "1", limit = "20" } = req.query as {
-    pageNo: string;
+  const { page = "1", limit = "20" } = req.query as {
+    page: string;
     limit: string;
   };
 
-  const products = await ProductModel.find({ owner: req.user.id })
-    .sort("-createdAt")
-    .skip((+pageNo - 1) * +limit)
-    .limit(+limit);
+  // Chuyển đổi sang số và đảm bảo giá trị hợp lệ
+  const pageNumber = Math.max(1, parseInt(page, 10));
+  const pageSize = Math.max(1, parseInt(limit, 10));
 
-  const listings = products.map((p) => {
-    return {
+  // Tính số bản ghi cần bỏ qua (skip)
+  const skip = (pageNumber - 1) * pageSize;
+
+  // Tổng số sản phẩm
+  const totalItems = await ProductModel.countDocuments();
+
+  // Lấy danh sách sản phẩm dựa trên phân trang
+  const products = await ProductModel.find()
+    .sort("-createdAt")
+    .skip(skip)
+    .limit(pageSize);
+
+  // Định dạng danh sách sản phẩm
+  const listings = products.map((p) => ({
+    id: p._id,
+    name: p.name,
+    thumbnail: p.thumbnail,
+    category: p.category,
+    price: p.price,
+    address: p?.address,
+    isSold: p.isSold,
+    isActive: p.isActive,
+  }));
+
+  // Trả về kết quả phân trang
+  res.json({
+    products: listings,
+    pagination: {
+      currentPage: pageNumber,
+      pageSize,
+      totalItems,
+      totalPages: Math.ceil(totalItems / pageSize),
+    },
+  });
+};
+
+export const getListings: RequestHandler = async (req, res) => {
+  try {
+    const { pageNo = "1", limit = "20" } = req.query as {
+      pageNo: string;
+      limit: string;
+    };
+
+    const page = Math.max(1, +pageNo); // Đảm bảo số trang không nhỏ hơn 1
+    const pageSize = Math.max(1, +limit); // Đảm bảo số lượng không nhỏ hơn 1
+
+    // Tổng số sản phẩm
+    const totalItems = await ProductModel.countDocuments({
+      owner: req.user.id,
+    });
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    // Lấy danh sách sản phẩm dựa trên phân trang
+    const products = await ProductModel.find({ owner: req.user.id })
+      .sort("-createdAt")
+      .skip((page - 1) * pageSize)
+      .limit(pageSize);
+
+    const listings = products.map((p) => ({
       id: p._id,
       name: p.name,
       thumbnail: p.thumbnail,
       category: p.category,
       price: p.price,
-      image: p.images?.map((i) => i.url),
+      images: p.images?.map((i) => i.url),
       date: p.purchasingDate,
       description: p.description,
       address: p.address,
@@ -359,10 +397,24 @@ export const getListings: RequestHandler = async (req, res) => {
         name: req.user.name,
         avatar: req.user.avatar,
       },
-    };
-  });
-  res.json({ products: listings });
+    }));
+
+    // Trả về kết quả phân trang
+    res.json({
+      products: listings,
+      pagination: {
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 export const searchProducts: RequestHandler = async (req, res) => {
   const { name } = req.query;
 
