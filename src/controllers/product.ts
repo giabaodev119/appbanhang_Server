@@ -309,6 +309,8 @@ export const getProductByCategory: RequestHandler = async (req, res) => {
       category: p.category,
       price: p.price,
       address: p?.address,
+      isActive: p.isActive,
+      isSold: p.isSold,
     };
   });
   res.json({ products: listings });
@@ -379,6 +381,7 @@ export const searchProducts: RequestHandler = async (req, res) => {
       thumbnail: product.thumbnail,
       address: product.address,
       isActive: product.isActive,
+      isSold: product.isSold,
     })),
   });
 };
@@ -480,7 +483,7 @@ export const getSeller: RequestHandler = async (req, res) => {
 
     // Tìm thông tin người bán
     const owner = await UserModel.findById(id).select(
-      "name email avatar address isAdmin isActive createdAt updatedAt"
+      "name email avatar address isAdmin isActive createdAt updatedAt premiumStatus"
     );
 
     if (!owner) {
@@ -492,8 +495,9 @@ export const getSeller: RequestHandler = async (req, res) => {
     const products = await ProductModel.find({
       owner: id,
       isActive: true,
-    }).select("name price category thumbnail address description isSold");
-
+    }).select(
+      "name price category thumbnail address description isActive isSold"
+    );
     // Trả về kết quả
     res.json({
       owner: {
@@ -505,6 +509,7 @@ export const getSeller: RequestHandler = async (req, res) => {
         isAdmin: owner.isAdmin,
         isActive: owner.isActive,
         createdAt: owner.createdAt,
+        premiumStatus: owner.premiumStatus,
       },
       products: products.map((product) => ({
         id: product._id,
@@ -514,7 +519,8 @@ export const getSeller: RequestHandler = async (req, res) => {
         thumbnail: product.thumbnail,
         address: product.address,
         description: product.description,
-        isSold: product.isSold, // Thêm isSold vào kết quả trả về
+        isActive: product.isActive,
+        isSold: product.isSold,
       })),
     });
   } catch (error) {
