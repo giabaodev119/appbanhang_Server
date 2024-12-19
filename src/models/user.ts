@@ -43,6 +43,7 @@ const userSchema = new Schema<UserDocument, {}, Methods>(
     },
     phoneNumber: {
       type: String,
+      //required: true,
     },
     verified: {
       type: Boolean,
