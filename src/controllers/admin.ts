@@ -141,23 +141,20 @@ export const updateUserStatus: RequestHandler = async (req, res) => {
       // Lấy danh sách sản phẩm và ảnh liên quan
       const products = await ProductModel.find({ owner: userId }, "images");
 
-      if (products.length === 0) {
-        sendErrorRes(res, "Product not found!", 404);
-        return;
-      }
+      if (products.length > 0) {
+        // Thu thập IDs của các ảnh cần xóa
+        const images = products.flatMap((product) => product.images || []);
+        const imageIds = images.map(({ id }) => id);
 
-      // Thu thập IDs của các ảnh cần xóa
-      const images = products.flatMap((product) => product.images || []);
-      const imageIds = images.map(({ id }) => id);
+        // Xóa sản phẩm
+        const result = await ProductModel.deleteMany({ owner: userId });
+        console.log(`${result.deletedCount} sản phẩm đã bị xóa.`);
 
-      // Xóa sản phẩm
-      const result = await ProductModel.deleteMany({ owner: userId });
-      console.log(`${result.deletedCount} sản phẩm đã bị xóa.`);
-
-      // Xóa ảnh từ Cloud API nếu có
-      if (imageIds.length) {
-        await cloudApi.delete_resources(imageIds);
-        console.log(`${imageIds.length} ảnh đã bị xóa.`);
+        // Xóa ảnh từ Cloud API nếu có
+        if (imageIds.length) {
+          await cloudApi.delete_resources(imageIds);
+          console.log(`${imageIds.length} ảnh đã bị xóa.`);
+        }
       }
     }
 

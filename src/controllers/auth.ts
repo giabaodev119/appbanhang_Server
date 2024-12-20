@@ -103,6 +103,13 @@ export const signIn: RequestHandler = async (req, res) => {
       403
     );
 
+  if (!user.isActive)
+    return sendErrorRes(
+      res,
+      "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ với quản trị viên để biết thêm chi tiết.",
+      403
+    );
+
   const isMatched = await user.comparePassword(password);
   if (!isMatched)
     return sendErrorRes(
@@ -253,8 +260,8 @@ export const updatePassword: RequestHandler = async (req, res) => {
 };
 
 export const updateProfile: RequestHandler = async (req, res) => {
-  const { name, provinceName, districtName } = req.body;
-  console.log(typeof name, typeof provinceName, typeof districtName);
+  const { name, provinceName, districtName, phoneNumber } = req.body;
+  console.log(name, provinceName, districtName, phoneNumber);
 
   if (typeof name !== "string" || name.trim().length < 3) {
     return sendErrorRes(res, "Tên không hợp lệ", 422);
@@ -262,9 +269,13 @@ export const updateProfile: RequestHandler = async (req, res) => {
 
   const address = provinceName + "_" + districtName;
 
-  await UserModel.findByIdAndUpdate(req.user.id, { name, address });
+  await UserModel.findByIdAndUpdate(req.user.id, {
+    name,
+    address,
+    phoneNumber,
+  });
 
-  res.json({ profile: { ...req.user, name, address } });
+  res.json({ profile: { ...req.user, name, address, phoneNumber } });
 };
 
 export const updateAvatar: RequestHandler = async (req, res) => {

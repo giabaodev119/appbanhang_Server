@@ -1,14 +1,8 @@
 import { RequestHandler } from "express";
-import config from "config";
-import querystring from "qs";
-import crypto from "crypto";
 import moment from "moment";
 import { sendErrorRes } from "src/utils/helper";
-import { url } from "inspector";
-import c from "config";
 import InvoiceModel from "src/models/Invoice";
 import UserModel from "src/models/user";
-import mongoose, { isValidObjectId, RootFilterQuery } from "mongoose";
 
 const subscriptions = new Map<string, number>([
   ["HV_1M", 1],
@@ -67,7 +61,7 @@ export const createPaymentUrl: RequestHandler = async (req, res, next) => {
     // let vnpUrl = config.get<string>("vnp_Url");
     let vnpUrl = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
     // const returnUrl = config.get<string>("vnp_ReturnUrl");
-    const returnUrl = "http://192.168.1.2:8000/order/vnpay_return";
+    const returnUrl = "http://10.0.130.246:8000/order/vnpay_return";
 
     let amount = req.body.amount;
     let bankCode = req.body.bankCode;
@@ -152,16 +146,6 @@ export const vnpayReturn: RequestHandler = async (req, res, next) => {
     // Extract the two parts
     const plan = parts.slice(0, 2).join("_"); // "HV_1M"
     const userId = parts[2]; // "674ad5cd4db158d364485a1b"
-
-    console.log("Plan:", plan);
-    console.log("User ID:", userId);
-
-    console.log(userId);
-    // Convert useridRaw to a valid ObjectId
-
-    // const userid = new mongoose.Types.ObjectId(useridRaw);
-    // if (!isValidObjectId(useridRaw))
-    //   return sendErrorRes(res, "Id sản phẩm không hợp lệ!", 422);
 
     const rescode = vnp_Params["vnp_ResponseCode"] === "00" ? "paid" : "failed";
 

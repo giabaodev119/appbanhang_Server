@@ -309,6 +309,8 @@ export const getProductByCategory: RequestHandler = async (req, res) => {
       category: p.category,
       price: p.price,
       address: p?.address,
+      isActive: p.isActive,
+      isSold: p.isSold,
     };
   });
   res.json({ products: listings });
@@ -431,51 +433,67 @@ export const searchProducts: RequestHandler = async (req, res) => {
       thumbnail: product.thumbnail,
       address: product.address,
       isActive: product.isActive,
+      isSold: product.isSold,
     })),
   });
 };
 
 export const getByAddress: RequestHandler = async (req, res) => {
-  const filter: RootFilterQuery<ProductDocument> = {};
+  const { page = "1", limit = "20" } = req.query as {
+    page: string;
+    limit: string;
+  };
 
-  // Kiểm tra req.user có tồn tại hay không
+  const pageNumber = Math.max(1, parseInt(page, 10));
+  const pageSize = Math.max(1, parseInt(limit, 10));
+  const skip = (pageNumber - 1) * pageSize;
+
   if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
     return;
   }
 
   const { address } = req.user;
-
   if (!address) {
+    res.status(400).json({ message: "Invalid address" });
     return;
   }
 
-  // Tách địa chỉ theo dấu gạch dưới "_"
   const splitAddress = address.split("_");
-  const city = splitAddress[0]; // Lấy phần thành phố (phần đầu tiên)
+  const city = splitAddress[0];
 
-  if (city) {
-    // Tìm kiếm theo thành phố với regex không phân biệt chữ hoa/chữ thường
-    filter.address = { $regex: new RegExp(`^${city}`, "i") };
-  } else {
-    sendErrorRes(res, "Địa chỉ không hợp lệ!", 400);
+  if (!city) {
+    res.status(400).json({ message: "Invalid address format" });
     return;
   }
+
+  const filter: RootFilterQuery<ProductDocument> = {
+    address: { $regex: new RegExp(`^${city}`, "i") },
+  };
 
   try {
-    // Tìm sản phẩm theo bộ lọc
-    const products = await ProductModel.find(filter).limit(50);
+    const totalItems = await ProductModel.countDocuments(filter);
+    const products = await ProductModel.find(filter).skip(skip).limit(pageSize);
+
+    const results = products.map((product) => ({
+      id: product._id,
+      name: product.name,
+      address: product.address,
+      thumbnail: product.thumbnail,
+      category: product.category,
+      price: product.price,
+      isSold: product.isSold,
+      isActive: product.isActive,
+    }));
 
     res.json({
-      results: products.map((product) => ({
-        id: product._id,
-        name: product.name,
-        address: product.address,
-        thumbnail: product?.thumbnail,
-        category: product.category,
-        price: product.price,
-        isSold: product.isSold,
-        isActive: product.isActive,
-      })),
+      results,
+      pagination: {
+        currentPage: pageNumber,
+        pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
+      },
     });
   } catch (error) {
     sendErrorRes(res, "Lỗi hệ thống!", 500);
@@ -532,7 +550,7 @@ export const getSeller: RequestHandler = async (req, res) => {
 
     // Tìm thông tin người bán
     const owner = await UserModel.findById(id).select(
-      "name email avatar address isAdmin isActive createdAt updatedAt"
+      "name email avatar address isAdmin isActive createdAt updatedAt premiumStatus"
     );
 
     if (!owner) {
@@ -544,8 +562,9 @@ export const getSeller: RequestHandler = async (req, res) => {
     const products = await ProductModel.find({
       owner: id,
       isActive: true,
-    }).select("name price category thumbnail address description isSold");
-
+    }).select(
+      "name price category thumbnail address description isActive isSold"
+    );
     // Trả về kết quả
     res.json({
       owner: {
@@ -557,6 +576,7 @@ export const getSeller: RequestHandler = async (req, res) => {
         isAdmin: owner.isAdmin,
         isActive: owner.isActive,
         createdAt: owner.createdAt,
+        premiumStatus: owner.premiumStatus,
       },
       products: products.map((product) => ({
         id: product._id,
@@ -566,7 +586,8 @@ export const getSeller: RequestHandler = async (req, res) => {
         thumbnail: product.thumbnail,
         address: product.address,
         description: product.description,
-        isSold: product.isSold, // Thêm isSold vào kết quả trả về
+        isActive: product.isActive,
+        isSold: product.isSold,
       })),
     });
   } catch (error) {
@@ -624,5 +645,65 @@ export const markProductAsSold: RequestHandler = async (req, res) => {
   } catch (error) {
     console.error("Lỗi khi cập nhật trạng thái sản phẩm:", error);
     sendErrorRes(res, "Lỗi máy chủ, vui lòng thử lại sau!", 500);
+  }
+};
+export const getPremiumUserProducts: RequestHandler = async (req, res) => {
+  const { page = "1", limit = "20" } = req.query as {
+    page: string;
+    limit: string;
+  };
+
+  const pageNumber = Math.max(1, parseInt(page, 10));
+  const pageSize = Math.max(1, parseInt(limit, 10));
+  const skip = (pageNumber - 1) * pageSize;
+
+  try {
+    const premiumUsers = await UserModel.find({
+      "premiumStatus.isAvailable": true,
+    }).select("_id");
+
+    const premiumUserIds = premiumUsers.map((user) => user._id);
+
+    const filter = {
+      owner: { $in: premiumUserIds },
+      isActive: true,
+    };
+
+    const totalItems = await ProductModel.countDocuments(filter);
+
+    const products = await ProductModel.find(filter)
+      .skip(skip)
+      .limit(pageSize)
+      .select(
+        "name price category thumbnail address description isActive isSold"
+      );
+
+    const results = products.map((product) => ({
+      id: product._id,
+      name: product.name,
+      price: product.price,
+      category: product.category,
+      thumbnail: product.thumbnail,
+      address: product.address,
+      description: product.description,
+      isActive: product.isActive,
+      isSold: product.isSold,
+    }));
+
+    res.json({
+      products: results,
+      pagination: {
+        currentPage: pageNumber,
+        pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
+      },
+    });
+  } catch (error) {
+    sendErrorRes(
+      res,
+      "An error occurred while retrieving premium user products.",
+      500
+    );
   }
 };
