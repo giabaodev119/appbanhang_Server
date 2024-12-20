@@ -316,42 +316,80 @@ export const getProductByCategory: RequestHandler = async (req, res) => {
   res.json({ products: listings });
 };
 export const getLatestProduct: RequestHandler = async (req, res) => {
-  const products = await ProductModel.find().sort("-createdAt").limit(20);
-
-  const listings = products.map((p) => {
-    return {
-      id: p._id,
-      name: p.name,
-      thumbnail: p.thumbnail,
-      category: p.category,
-      price: p.price,
-      address: p?.address,
-      isSold: p.isSold,
-      isActive: p.isActive,
-    };
-  });
-  res.json({ products: listings });
-};
-
-export const getListings: RequestHandler = async (req, res) => {
-  const { pageNo = "1", limit = "20" } = req.query as {
-    pageNo: string;
+  const { page = "1", limit = "20" } = req.query as {
+    page: string;
     limit: string;
   };
 
-  const products = await ProductModel.find({ owner: req.user.id })
-    .sort("-createdAt")
-    .skip((+pageNo - 1) * +limit)
-    .limit(+limit);
+  // Chuyển đổi sang số và đảm bảo giá trị hợp lệ
+  const pageNumber = Math.max(1, parseInt(page, 10));
+  const pageSize = Math.max(1, parseInt(limit, 10));
 
-  const listings = products.map((p) => {
-    return {
+  // Tính số bản ghi cần bỏ qua (skip)
+  const skip = (pageNumber - 1) * pageSize;
+
+  // Tổng số sản phẩm
+  const totalItems = await ProductModel.countDocuments();
+
+  // Lấy danh sách sản phẩm dựa trên phân trang
+  const products = await ProductModel.find()
+    .sort("-createdAt")
+    .skip(skip)
+    .limit(pageSize);
+
+  // Định dạng danh sách sản phẩm
+  const listings = products.map((p) => ({
+    id: p._id,
+    name: p.name,
+    thumbnail: p.thumbnail,
+    category: p.category,
+    price: p.price,
+    address: p?.address,
+    isSold: p.isSold,
+    isActive: p.isActive,
+  }));
+
+  // Trả về kết quả phân trang
+  res.json({
+    products: listings,
+    pagination: {
+      currentPage: pageNumber,
+      pageSize,
+      totalItems,
+      totalPages: Math.ceil(totalItems / pageSize),
+    },
+  });
+};
+
+export const getListings: RequestHandler = async (req, res) => {
+  try {
+    const { pageNo = "1", limit = "20" } = req.query as {
+      pageNo: string;
+      limit: string;
+    };
+
+    const page = Math.max(1, +pageNo); // Đảm bảo số trang không nhỏ hơn 1
+    const pageSize = Math.max(1, +limit); // Đảm bảo số lượng không nhỏ hơn 1
+
+    // Tổng số sản phẩm
+    const totalItems = await ProductModel.countDocuments({
+      owner: req.user.id,
+    });
+    const totalPages = Math.ceil(totalItems / pageSize);
+
+    // Lấy danh sách sản phẩm dựa trên phân trang
+    const products = await ProductModel.find({ owner: req.user.id })
+      .sort("-createdAt")
+      .skip((page - 1) * pageSize)
+      .limit(pageSize);
+
+    const listings = products.map((p) => ({
       id: p._id,
       name: p.name,
       thumbnail: p.thumbnail,
       category: p.category,
       price: p.price,
-      image: p.images?.map((i) => i.url),
+      images: p.images?.map((i) => i.url),
       date: p.purchasingDate,
       description: p.description,
       address: p.address,
@@ -361,10 +399,24 @@ export const getListings: RequestHandler = async (req, res) => {
         name: req.user.name,
         avatar: req.user.avatar,
       },
-    };
-  });
-  res.json({ products: listings });
+    }));
+
+    // Trả về kết quả phân trang
+    res.json({
+      products: listings,
+      pagination: {
+        currentPage: page,
+        pageSize,
+        totalItems,
+        totalPages,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
 };
+
 export const searchProducts: RequestHandler = async (req, res) => {
   const { name } = req.query;
 
@@ -387,46 +439,61 @@ export const searchProducts: RequestHandler = async (req, res) => {
 };
 
 export const getByAddress: RequestHandler = async (req, res) => {
-  const filter: RootFilterQuery<ProductDocument> = {};
+  const { page = "1", limit = "20" } = req.query as {
+    page: string;
+    limit: string;
+  };
 
-  // Kiểm tra req.user có tồn tại hay không
+  const pageNumber = Math.max(1, parseInt(page, 10));
+  const pageSize = Math.max(1, parseInt(limit, 10));
+  const skip = (pageNumber - 1) * pageSize;
+
   if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
     return;
   }
 
   const { address } = req.user;
-
   if (!address) {
+    res.status(400).json({ message: "Invalid address" });
     return;
   }
 
-  // Tách địa chỉ theo dấu gạch dưới "_"
   const splitAddress = address.split("_");
-  const city = splitAddress[0]; // Lấy phần thành phố (phần đầu tiên)
+  const city = splitAddress[0];
 
-  if (city) {
-    // Tìm kiếm theo thành phố với regex không phân biệt chữ hoa/chữ thường
-    filter.address = { $regex: new RegExp(`^${city}`, "i") };
-  } else {
-    sendErrorRes(res, "Địa chỉ không hợp lệ!", 400);
+  if (!city) {
+    res.status(400).json({ message: "Invalid address format" });
     return;
   }
+
+  const filter: RootFilterQuery<ProductDocument> = {
+    address: { $regex: new RegExp(`^${city}`, "i") },
+  };
 
   try {
-    // Tìm sản phẩm theo bộ lọc
-    const products = await ProductModel.find(filter).limit(50);
+    const totalItems = await ProductModel.countDocuments(filter);
+    const products = await ProductModel.find(filter).skip(skip).limit(pageSize);
+
+    const results = products.map((product) => ({
+      id: product._id,
+      name: product.name,
+      address: product.address,
+      thumbnail: product.thumbnail,
+      category: product.category,
+      price: product.price,
+      isSold: product.isSold,
+      isActive: product.isActive,
+    }));
 
     res.json({
-      results: products.map((product) => ({
-        id: product._id,
-        name: product.name,
-        address: product.address,
-        thumbnail: product?.thumbnail,
-        category: product.category,
-        price: product.price,
-        isSold: product.isSold,
-        isActive: product.isActive,
-      })),
+      results,
+      pagination: {
+        currentPage: pageNumber,
+        pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
+      },
     });
   } catch (error) {
     sendErrorRes(res, "Lỗi hệ thống!", 500);
@@ -581,35 +648,56 @@ export const markProductAsSold: RequestHandler = async (req, res) => {
   }
 };
 export const getPremiumUserProducts: RequestHandler = async (req, res) => {
+  const { page = "1", limit = "20" } = req.query as {
+    page: string;
+    limit: string;
+  };
+
+  const pageNumber = Math.max(1, parseInt(page, 10));
+  const pageSize = Math.max(1, parseInt(limit, 10));
+  const skip = (pageNumber - 1) * pageSize;
+
   try {
-    // Tìm tất cả người dùng có trạng thái premium
     const premiumUsers = await UserModel.find({
       "premiumStatus.isAvailable": true,
     }).select("_id");
 
     const premiumUserIds = premiumUsers.map((user) => user._id);
 
-    // Tìm tất cả sản phẩm thuộc về người dùng premium
-    const products = await ProductModel.find({
+    const filter = {
       owner: { $in: premiumUserIds },
       isActive: true,
-    }).select(
-      "name price category thumbnail address description isActive isSold"
-    );
+    };
 
-    // Trả về kết quả
+    const totalItems = await ProductModel.countDocuments(filter);
+
+    const products = await ProductModel.find(filter)
+      .skip(skip)
+      .limit(pageSize)
+      .select(
+        "name price category thumbnail address description isActive isSold"
+      );
+
+    const results = products.map((product) => ({
+      id: product._id,
+      name: product.name,
+      price: product.price,
+      category: product.category,
+      thumbnail: product.thumbnail,
+      address: product.address,
+      description: product.description,
+      isActive: product.isActive,
+      isSold: product.isSold,
+    }));
+
     res.json({
-      products: products.map((product) => ({
-        id: product._id,
-        name: product.name,
-        price: product.price,
-        category: product.category,
-        thumbnail: product.thumbnail,
-        address: product.address,
-        description: product.description,
-        isActive: product.isActive,
-        isSold: product.isSold,
-      })),
+      products: results,
+      pagination: {
+        currentPage: pageNumber,
+        pageSize,
+        totalItems,
+        totalPages: Math.ceil(totalItems / pageSize),
+      },
     });
   } catch (error) {
     sendErrorRes(
